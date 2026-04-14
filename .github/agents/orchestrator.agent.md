@@ -45,6 +45,18 @@ htui is a zero-dependency Node.js CLI tool using raw ANSI escape codes to render
 - **Deployer** only after tests pass
 - For bug fixes: Implementer first, then Tester to verify
 
+## Documentation Check (Mandatory)
+
+After every change, verify whether documentation needs updating. This is a **required step**, not optional:
+
+1. **README.md** — Does the change affect usage, CLI flags, commands, API protocol, agent integration, or the feature list/roadmap?
+2. **AGENTS.md** — Does the change affect the API protocol, commands, events, or options that agents use?
+3. **HTUI-SPEC.md** — Does the change alter core behavior or introduce new modes/features?
+4. **Agent instruction files** (CLAUDE.md, .cursorrules, .windsurfrules, .github/copilot-instructions.md) — Are they generated from AGENTS.md via `htui init`? If AGENTS.md changed, these update automatically on next `htui init`.
+5. **Help text** (`printUsage` in cli.ts, `printInitHelp` in init.ts) — Does the change add/remove CLI flags or commands?
+
+If any documentation is stale, delegate the update to the **Implementer** before marking the task complete.
+
 ## Constraints
 
 - DO NOT write code directly — delegate to Implementer
