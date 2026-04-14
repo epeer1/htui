@@ -705,15 +705,15 @@ htui ships with `htui init` — a command that installs instruction files for al
 ### Quick Setup
 
 ```bash
-# Install instructions for all agents
+# Interactive — select which agents you use
 npx htui init
 
-# Or install for a specific agent
+# Or specify directly
 npx htui init copilot
-npx htui init claude
-npx htui init cursor
-npx htui init windsurf
+npx htui init claude cursor
 ```
+
+With no arguments, `htui init` shows an interactive menu where you pick your agents with arrow keys and spacebar.
 
 ### What Gets Created
 
@@ -732,7 +732,7 @@ Each file contains the full API mode protocol documentation, so your agent knows
 3. Read JSON events from stdout
 4. Query previous command output by card index
 
-If a file already exists and contains htui instructions, `htui init` skips it. If the file exists without htui instructions, it appends them.
+Instruction files are always **appended** — existing content is preserved. htui wraps its content in `<!-- htui:start -->` / `<!-- htui:end -->` markers, so re-running `htui init` **updates in place** without duplicating.
 
 ### Workflow
 
