@@ -1,0 +1,35 @@
+{
+  "name": "htui",
+  "version": "0.1.0",
+  "description": "Horizontal Terminal UI — turns terminal output into horizontally paged cards",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "htui": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["terminal", "tui", "cli", "horizontal", "timeline", "cards"],
+  "author": "epeer1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/epeer1/htui.git"
+  },
+  "homepage": "https://github.com/epeer1/htui#readme",
+  "bugs": {
+    "url": "https://github.com/epeer1/htui/issues"
+  },
+  "files": ["dist", "AGENTS.md"],
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.2"
+  }
+}
