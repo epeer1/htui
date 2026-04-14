@@ -170,9 +170,7 @@ async function main(): Promise<void> {
       return;
     }
     const agents = process.argv.slice(3).filter(a => !a.startsWith('-'));
-    console.log('Installing htui agent instructions...');
-    initAgentInstructions(process.cwd(), agents.length > 0 ? agents : undefined);
-    console.log('\nDone! Your AI agent will now use htui --api for terminal commands.');
+    await initAgentInstructions(process.cwd(), agents.length > 0 ? agents : undefined);
     return;
   }
 

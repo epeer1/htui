@@ -1,89 +1,162 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { multiSelect } from './select.js';
 
-const AGENTS_CONTENT_PATH = path.join(__dirname, '..', 'AGENTS.md');
+const MARKER_START = '<!-- htui:start -->';
+const MARKER_END = '<!-- htui:end -->';
 
-interface Target {
-  name: string;
-  path: string;
-  wrapFn?: (content: string) => string;
+type AgentId = 'copilot' | 'claude' | 'cursor' | 'windsurf';
+
+interface AgentTarget {
+  id: AgentId;
+  label: string;
+  filePath: string;
 }
 
-const TARGETS: Target[] = [
-  {
-    name: 'Generic (AGENTS.md)',
-    path: 'AGENTS.md',
-  },
-  {
-    name: 'Claude Code (CLAUDE.md)',
-    path: 'CLAUDE.md',
-    wrapFn: (content) => content, // same format
-  },
-  {
-    name: 'GitHub Copilot',
-    path: '.github/copilot-instructions.md',
-    wrapFn: (content) => content,
-  },
-  {
-    name: 'Cursor',
-    path: '.cursorrules',
-    wrapFn: (content) => content,
-  },
-  {
-    name: 'Windsurf',
-    path: '.windsurfrules',
-    wrapFn: (content) => content,
-  },
+const AGENT_TARGETS: AgentTarget[] = [
+  { id: 'copilot', label: 'GitHub Copilot', filePath: '.github/copilot-instructions.md' },
+  { id: 'claude', label: 'Claude Code', filePath: 'CLAUDE.md' },
+  { id: 'cursor', label: 'Cursor', filePath: '.cursorrules' },
+  { id: 'windsurf', label: 'Windsurf', filePath: '.windsurfrules' },
 ];
 
-export function initAgentInstructions(targetDir: string, agents?: string[]): void {
-  let content: string;
-  try {
-    content = fs.readFileSync(AGENTS_CONTENT_PATH, 'utf-8');
-  } catch {
-    // Fallback: if AGENTS.md isn't found relative to dist, try CWD
-    const fallback = path.join(process.cwd(), 'node_modules', 'htui', 'AGENTS.md');
-    try {
-      content = fs.readFileSync(fallback, 'utf-8');
-    } catch {
-      console.error('Could not find htui AGENTS.md template');
-      process.exit(1);
-    }
+const VALID_IDS = AGENT_TARGETS.map(t => t.id);
+
+interface ResolveResult {
+  content: string;
+  action: 'created' | 'updated' | 'appended';
+}
+
+function resolveContent(existing: string | null, htuiContent: string): ResolveResult {
+  const wrapped = MARKER_START + '\n' + htuiContent + '\n' + MARKER_END;
+
+  if (existing === null) {
+    return { content: wrapped, action: 'created' };
   }
 
-  const targets = agents
-    ? TARGETS.filter(t => agents.some(a => t.name.toLowerCase().includes(a.toLowerCase())))
-    : TARGETS;
+  const startIdx = existing.indexOf(MARKER_START);
+  const endIdx = existing.indexOf(MARKER_END);
 
-  if (targets.length === 0) {
-    console.log('No matching agent targets. Available: ' + TARGETS.map(t => t.name).join(', '));
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    // Replace between markers (inclusive)
+    const before = existing.substring(0, startIdx);
+    const after = existing.substring(endIdx + MARKER_END.length);
+    return { content: before + wrapped + after, action: 'updated' };
+  }
+
+  // No valid marker pair — append
+  return { content: existing + '\n\n' + wrapped, action: 'appended' };
+}
+
+function loadHtuiContent(): string {
+  const candidates = [
+    path.join(__dirname, '..', 'AGENTS.md'),
+    path.join(process.cwd(), 'node_modules', 'htui', 'AGENTS.md'),
+  ];
+  for (const p of candidates) {
+    try {
+      return fs.readFileSync(p, 'utf-8');
+    } catch { /* try next */ }
+  }
+  console.error('Could not find htui AGENTS.md template');
+  process.exit(1);
+}
+
+export async function initAgentInstructions(targetDir: string, agents?: string[]): Promise<void> {
+  let selectedIds: AgentId[];
+
+  if (agents && agents.length > 0) {
+    // Validate CLI-provided agent IDs
+    const unknown = agents.filter(a => !VALID_IDS.includes(a as AgentId));
+    if (unknown.length > 0) {
+      console.error(`Unknown agent(s): ${unknown.join(', ')}`);
+      console.error(`Valid agents: ${VALID_IDS.join(', ')}`);
+      return;
+    }
+    selectedIds = agents as AgentId[];
+  } else {
+    // Interactive multi-select
+    const result = await multiSelect(
+      'Select agents to install for: (Space to toggle, Enter to confirm)',
+      AGENT_TARGETS.map(t => ({ label: t.label, value: t.id, checked: true })),
+    );
+    if (result.aborted) {
+      console.log('Cancelled.');
+      return;
+    }
+    selectedIds = result.selected as AgentId[];
+  }
+
+  if (selectedIds.length === 0) {
+    console.log('No agents selected.');
     return;
   }
 
-  for (const target of targets) {
-    const fullPath = path.join(targetDir, target.path);
+  const htuiContent = loadHtuiContent();
+
+  // Always write AGENTS.md
+  interface WriteEntry {
+    label: string;
+    filePath: string;
+  }
+
+  const writeList: WriteEntry[] = [
+    { label: 'AGENTS.md', filePath: 'AGENTS.md' },
+    ...AGENT_TARGETS.filter(t => selectedIds.includes(t.id)).map(t => ({
+      label: t.label,
+      filePath: t.filePath,
+    })),
+  ];
+
+  const results: Array<{ label: string; filePath: string; action: string }> = [];
+
+  for (const entry of writeList) {
+    const fullPath = path.join(targetDir, entry.filePath);
     const dir = path.dirname(fullPath);
 
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
 
-    const fileContent = target.wrapFn ? target.wrapFn(content) : content;
+    let existing: string | null = null;
+    try {
+      existing = fs.readFileSync(fullPath, 'utf-8');
+    } catch { /* file doesn't exist */ }
 
-    if (fs.existsSync(fullPath)) {
-      // Append to existing file
-      const existing = fs.readFileSync(fullPath, 'utf-8');
-      if (existing.includes('htui')) {
-        console.log(`  ✓ ${target.name}: ${target.path} (already contains htui instructions)`);
-        continue;
-      }
-      fs.appendFileSync(fullPath, '\n\n' + fileContent);
-      console.log(`  ✓ ${target.name}: appended to ${target.path}`);
-    } else {
-      fs.writeFileSync(fullPath, fileContent);
-      console.log(`  ✓ ${target.name}: created ${target.path}`);
+    // For AGENTS.md, write the content directly (no markers)
+    if (entry.filePath === 'AGENTS.md') {
+      fs.writeFileSync(fullPath, htuiContent);
+      results.push({
+        label: entry.label,
+        filePath: entry.filePath,
+        action: existing === null ? 'created' : 'updated',
+      });
+      continue;
     }
+
+    const resolved = resolveContent(existing, htuiContent);
+    fs.writeFileSync(fullPath, resolved.content);
+    results.push({
+      label: entry.label,
+      filePath: entry.filePath,
+      action: resolved.action,
+    });
   }
+
+  // Print status report
+  console.log('');
+  for (const r of results) {
+    let color: string;
+    switch (r.action) {
+      case 'created':  color = '\x1b[32m'; break; // green
+      case 'appended': color = '\x1b[33m'; break; // yellow
+      case 'updated':  color = '\x1b[36m'; break; // cyan
+      default:         color = '';
+    }
+    console.log(`  ${color}${r.action}\x1b[0m  ${r.filePath} \x1b[2m(${r.label})\x1b[0m`);
+  }
+
+  console.log('\n\x1b[1mDone!\x1b[0m Your AI agents will now use htui --api for terminal commands.');
 }
 
 export function printInitHelp(): void {
@@ -91,20 +164,18 @@ export function printInitHelp(): void {
 htui init — Install agent instructions for AI coding assistants
 
 Usage:
-  htui init                  Install for all agents
-  htui init copilot          Install for GitHub Copilot only
-  htui init claude           Install for Claude Code only
-  htui init cursor           Install for Cursor only
-  htui init windsurf         Install for Windsurf only
+  htui init                  Interactive prompt to select agents
+  htui init copilot claude   Install for specific agents
+  htui init --help           Show this help
 
-This creates/appends instruction files that teach AI agents
-how to use htui's API mode (htui --api) for structured terminal output.
+Agents:
+  copilot    GitHub Copilot  → .github/copilot-instructions.md
+  claude     Claude Code     → CLAUDE.md
+  cursor     Cursor          → .cursorrules
+  windsurf   Windsurf        → .windsurfrules
 
-Files created:
-  AGENTS.md                  Generic (works with many agents)
-  CLAUDE.md                  Claude Code
-  .github/copilot-instructions.md   GitHub Copilot
-  .cursorrules               Cursor
-  .windsurfrules             Windsurf
+AGENTS.md is always created/updated as the canonical instruction file.
+Agent-specific files get htui instructions wrapped in <!-- htui:start/end -->
+markers so they can be updated in place on subsequent runs.
 `);
 }
