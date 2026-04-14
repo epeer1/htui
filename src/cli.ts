@@ -169,8 +169,7 @@ async function main(): Promise<void> {
       printInitHelp();
       return;
     }
-    const agents = process.argv.slice(3).filter(a => !a.startsWith('-'));
-    await initAgentInstructions(process.cwd(), agents.length > 0 ? agents : undefined);
+    await initAgentInstructions(process.cwd(), process.argv.slice(3));
     return;
   }
 

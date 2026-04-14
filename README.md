@@ -709,30 +709,32 @@ htui ships with `htui init` — a command that installs instruction files for al
 npx htui init
 
 # Or specify directly
-npx htui init copilot
-npx htui init claude cursor
+npx htui init copilot claude
+npx htui init cursor --legacy
+npx htui init antigravity --skill
+npx htui init copilot --path-instructions
 ```
 
 With no arguments, `htui init` shows an interactive menu where you pick your agents with arrow keys and spacebar.
 
 ### What Gets Created
 
-| File | Agent |
-|------|-------|
-| `AGENTS.md` | Generic (works with many agents) |
-| `CLAUDE.md` | Claude Code |
-| `.github/copilot-instructions.md` | GitHub Copilot |
-| `.cursorrules` | Cursor |
-| `.windsurfrules` | Windsurf |
+| Agent | Default file | Optional (with flag) |
+|-------|-------------|---------------------|
+| *(always)* | `AGENTS.md` (full protocol) | — |
+| `copilot` | `.github/copilot-instructions.md` | `--path-instructions` → `.github/instructions/htui.instructions.md` |
+| `claude` | `CLAUDE.md` | — |
+| `cursor` | `.cursor/rules/htui.mdc` | `--legacy` → `.cursorrules` |
+| `windsurf` | `.windsurfrules` | — |
+| `antigravity` | `GEMINI.md` | `--skill` → `skills/htui/SKILL.md` |
 
-Each file contains the full API mode protocol documentation, so your agent knows how to:
+`AGENTS.md` is the **canonical source of truth** — it contains the full API mode protocol (all commands, events, and options). Agent-specific files are short shims that tell the agent to use `htui --api` and point to `AGENTS.md` for the complete reference. This avoids duplicating the protocol in every file and keeps agent context windows small.
 
-1. Start `htui --api` as a persistent process
-2. Send JSON commands on stdin
-3. Read JSON events from stdout
-4. Query previous command output by card index
+### Upsert Behavior
 
-Instruction files are always **appended** — existing content is preserved. htui wraps its content in `<!-- htui:start -->` / `<!-- htui:end -->` markers, so re-running `htui init` **updates in place** without duplicating.
+Most agent files use `<!-- htui:start -->` / `<!-- htui:end -->` markers so that re-running `htui init` **updates in place** without touching your existing content. Files outside the markers are preserved.
+
+`AGENTS.md`, `.cursor/rules/htui.mdc`, and `skills/htui/SKILL.md` are fully owned by htui and overwritten entirely on each run.
 
 ### Workflow
 
@@ -887,6 +889,7 @@ Where to look when making changes:
 - [x] Shell command history (↑ ↓)
 - [x] Shell browse/input mode switching (Tab)
 - [x] `htui init` — agent instruction installer for all major AI agents
+- [x] Antigravity/Gemini support in `htui init` with optional skill generation
 - [x] Cross-platform support (macOS, Linux, Windows)
 - [x] Card expand view with line numbers, vim-style navigation (G, g)
 
