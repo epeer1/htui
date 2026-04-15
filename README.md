@@ -10,9 +10,9 @@
   <br />
   <br />
 
-  [![npm version](https://img.shields.io/npm/v/htui.svg)](https://www.npmjs.com/package/htui)
-  [![license](https://img.shields.io/npm/l/htui.svg)](https://github.com/epeer1/htui/blob/main/LICENSE)
-  [![node](https://img.shields.io/node/v/htui.svg)](https://nodejs.org)
+  [![npm version](https://img.shields.io/npm/v/@epeer1/htui.svg)](https://www.npmjs.com/package/@epeer1/htui)
+  [![license](https://img.shields.io/npm/l/@epeer1/htui.svg)](https://github.com/epeer1/htui/blob/main/LICENSE)
+  [![node](https://img.shields.io/node/v/@epeer1/htui.svg)](https://nodejs.org)
   [![zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#zero-dependencies)
 
 </p>
@@ -97,10 +97,10 @@ Existing tools solve adjacent problems, but none focus on this interaction model
 
 ```bash
 # Run it instantly — no install required
-npx htui run "echo hello" "echo world"
+npx @epeer1/htui run "echo hello" "echo world"
 
 # Or install globally
-npm install -g htui
+npm install -g @epeer1/htui
 
 # Interactive shell — type commands, each becomes a card
 htui
@@ -495,7 +495,7 @@ Terminal
 htui uses raw ANSI CSI sequences (`\x1b[...`) instead of a TUI framework like blessed, ink, or terminal-kit. This is the #1 design decision and it has consequences:
 
 **Benefits:**
-- **Zero dependencies** — `npx htui` downloads just htui, no dependency tree
+- **Zero dependencies** — `npx @epeer1/htui` downloads just htui, no dependency tree
 - **Instant startup** — no framework initialization overhead
 - **Full control** — precise cursor positioning, exact color control, no framework abstractions leaking
 - **Small package** — the entire tool is a handful of TypeScript files
@@ -506,7 +506,7 @@ htui uses raw ANSI CSI sequences (`\x1b[...`) instead of a TUI framework like bl
 - No layout engine — all positioning is calculated by hand
 - Cross-platform quirks must be handled manually (Windows Console API differences)
 
-This tradeoff is intentional. htui is a CLI tool that should feel **instant** — `npx htui run "cmd"` should launch in under a second. A dependency tree that needs to download blessed (or similar) defeats the purpose.
+This tradeoff is intentional. htui is a CLI tool that should feel **instant** — `npx @epeer1/htui run "cmd"` should launch in under a second. A dependency tree that needs to download blessed (or similar) defeats the purpose.
 
 #### Why alternate screen buffer?
 
@@ -545,7 +545,7 @@ htui --api
 Or via npx:
 
 ```bash
-npx htui --api
+npx @epeer1/htui --api
 ```
 
 ### Commands (stdin → htui)
@@ -706,13 +706,13 @@ htui ships with `htui init` — a command that installs instruction files for al
 
 ```bash
 # Interactive — select which agents you use
-npx htui init
+npx @epeer1/htui init
 
 # Or specify directly
-npx htui init copilot claude
-npx htui init cursor --legacy
-npx htui init antigravity --skill
-npx htui init copilot --path-instructions
+npx @epeer1/htui init copilot claude
+npx @epeer1/htui init cursor --legacy
+npx @epeer1/htui init antigravity --skill
+npx @epeer1/htui init copilot --path-instructions
 ```
 
 With no arguments, `htui init` shows an interactive menu where you pick your agents with arrow keys and spacebar.
@@ -775,7 +775,7 @@ htui cards are not tmux panes. They're not side-by-side terminals. They're **pag
 
 htui uses zero runtime dependencies. This is not an accident or a flex — it's a product requirement:
 
-1. **`npx htui` must feel instant.** Dependency trees add download time. A tool that takes 30 seconds to install won't get tried.
+1. **`npx @epeer1/htui` must feel instant.** Dependency trees add download time. A tool that takes 30 seconds to install won't get tried.
 2. **Terminal tools have low tolerance for bloat.** If someone sees `node_modules/` with 200 packages for a terminal tool, trust erodes.
 3. **ANSI escape codes are a stable API.** They don't need a framework. They've been the same since the VT100 in 1978.
 

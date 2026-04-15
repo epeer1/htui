@@ -50,7 +50,7 @@ interface InstructionModel {
 function buildInstructionModel(): InstructionModel {
   return {
     summary: 'Structured terminal for AI agents. Run commands, get clean JSON output \u2014 no ANSI parsing, no interleaving.',
-    startupCommand: 'node node_modules/htui/dist/cli.js --api',
+    startupCommand: 'node node_modules/@epeer1/htui/dist/cli.js --api',
     quickStartRequest: '{"cmd": "run", "command": "npm test", "wait": true, "timeout": 30000}',
     quickStartNote: '\u2192 Returns `card_done` with all output in `lines` array when finished.',
     quickPatternIntro: 'Use `"wait": true` for any command you want to run and get results from. htui buffers all output and returns it in one response when the command finishes.',

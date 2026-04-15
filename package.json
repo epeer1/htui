@@ -1,5 +1,5 @@
 {
-  "name": "htui",
+  "name": "@epeer1/htui",
   "version": "0.1.0",
   "description": "Horizontal Terminal UI — turns terminal output into horizontally paged cards",
   "main": "dist/index.js",
@@ -25,7 +25,7 @@
   "bugs": {
     "url": "https://github.com/epeer1/htui/issues"
   },
-  "files": ["dist", "AGENTS.md"],
+  "files": ["dist"],
   "engines": {
     "node": ">=18"
   },
