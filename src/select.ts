@@ -27,7 +27,7 @@ export function multiSelect(title: string, options: SelectOption[]): Promise<Mul
 
       // On re-render, move cursor up to overwrite previous output
       if (!first && lineCount > 0) {
-        out += `\x1b[${lineCount}A`;
+        out += `\x1b[${lineCount - 1}A`;
       }
 
       // Title line

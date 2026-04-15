@@ -230,32 +230,7 @@ function renderAgentsMd(model: InstructionModel): string {
 }
 
 function renderShim(model: InstructionModel): string {
-  const lines: string[] = [];
-
-  lines.push('# htui \u2014 Terminal Commands');
-  lines.push('');
-  lines.push('This repo uses [htui](https://github.com/epeer1/htui) (`htui --api`) for structured terminal access. All terminal commands should go through htui\'s JSON protocol instead of running shell commands directly.');
-  lines.push('');
-  lines.push('## Start htui');
-  lines.push('');
-  lines.push('```');
-  lines.push(model.startupCommand);
-  lines.push('```');
-  lines.push('');
-  lines.push('## Run a command');
-  lines.push('');
-  lines.push('```json');
-  lines.push(model.quickStartRequest);
-  lines.push('```');
-  lines.push('');
-  lines.push('Returns structured JSON with exit code, duration, and all output lines.');
-  lines.push('');
-  lines.push('## Full protocol');
-  lines.push('');
-  lines.push('See [AGENTS.md](./AGENTS.md) for all commands, events, and options.');
-  lines.push('');
-
-  return lines.join('\n');
+  return renderAgentsMd(model);
 }
 
 function renderCopilotInstructions(model: InstructionModel): string {
@@ -541,7 +516,7 @@ export async function initAgentInstructions(targetDir: string, argv: string[]): 
   } else {
     const result = await multiSelect(
       'Select agents to install for: (Space to toggle, Enter to confirm)',
-      AGENT_TARGETS.map(t => ({ label: t.label, value: t.id, checked: true })),
+      AGENT_TARGETS.map(t => ({ label: t.label, value: t.id, checked: false })),
     );
     if (result.aborted) {
       console.log('Cancelled.');
@@ -557,15 +532,7 @@ export async function initAgentInstructions(targetDir: string, argv: string[]): 
 
   const model = buildInstructionModel();
 
-  // Always write AGENTS.md (overwrite, no markers)
-  const allWrites: FileWrite[] = [
-    {
-      filePath: 'AGENTS.md',
-      content: renderAgentsMd(model),
-      strategy: 'overwrite',
-      label: 'AGENTS.md',
-    },
-  ];
+  const allWrites: FileWrite[] = [];
 
   // Collect writes for selected agents
   for (const target of AGENT_TARGETS) {
