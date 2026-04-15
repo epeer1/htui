@@ -9,22 +9,16 @@ const MARKER_END = '<!-- htui:end -->';
 
 // ─── Layer 1: Instruction Model ────────────────────────────────────
 
-interface QuickPatternExample {
-  title: string;
-  request: string;
-  response?: string;
+interface PatternExample {
+  scenario: string;
+  command: string;
+  note: string;
 }
 
 interface CommandEntry {
   name: string;
-  requiredFields: string;
-  optionalFields: string;
+  keyFields: string;
   description: string;
-}
-
-interface CommandDetail {
-  heading: string;
-  items: string[];
 }
 
 interface EventEntry {
@@ -34,179 +28,134 @@ interface EventEntry {
 }
 
 interface InstructionModel {
-  summary: string;
+  directive: string;
+  useWhen: string[];
+  dontUseWhen: string[];
   startupCommand: string;
-  quickStartRequest: string;
-  quickStartNote: string;
-  quickPatternIntro: string;
-  quickPatternExamples: QuickPatternExample[];
+  patterns: PatternExample[];
   commands: CommandEntry[];
-  commandDetails: CommandDetail[];
   events: EventEntry[];
-  cardStatuses: string[];
-  tips: string[];
 }
 
 function buildInstructionModel(): InstructionModel {
   return {
-    summary: 'Structured terminal for AI agents. Run commands, get clean JSON output \u2014 no ANSI parsing, no interleaving.',
+    directive: '**Use htui instead of your built-in terminal tool when you need to run multiple commands in a session, search across their output, or isolate stderr.** htui keeps every command\'s output in a queryable card — nothing is truncated, nothing is lost.\n\nFor simple one-off commands, use your built-in terminal tool. htui earns its keep on multi-command workflows.',
+    useWhen: [
+      '**Multiple related commands** — run build, lint, test, then search all outputs for errors at once',
+      '**Searching output** — regex search across all command outputs without reading them individually',
+      '**Isolating errors** — get only stderr from any command',
+      '**Long output** — output is never truncated; retrieve any slice with line ranges',
+      '**Tracking a session** — list all commands, check statuses, re-read any previous output',
+    ],
+    dontUseWhen: [
+      'Single one-off command where you just need the result',
+      'Interactive commands that need terminal input (htui commands are non-interactive)',
+    ],
     startupCommand: 'node node_modules/@epeer1/htui/dist/cli.js --api',
-    quickStartRequest: '{"cmd": "run", "command": "npm test", "wait": true, "timeout": 30000}',
-    quickStartNote: '\u2192 Returns `card_done` with all output in `lines` array when finished.',
-    quickPatternIntro: 'Use `"wait": true` for any command you want to run and get results from. htui buffers all output and returns it in one response when the command finishes.',
-    quickPatternExamples: [
+    patterns: [
       {
-        title: 'Run and wait:',
-        request: '{"cmd": "run", "command": "npm test", "wait": true, "timeout": 30000}',
-        response: '{"event": "card_done", "card": 0, "status": "done", "exitCode": 0, "duration": "2.1s", "lineCount": 42, "lines": ["PASS src/utils.test.ts", "..."]}',
+        scenario: 'Run a command and get output',
+        command: '{"cmd": "run", "command": "npm test", "wait": true, "timeout": 30000}',
+        note: 'Returns `card_done` with `exitCode`, `duration`, and all output in `lines[]` when finished.',
       },
       {
-        title: 'Search across output:',
-        request: '{"cmd": "search", "pattern": "error|FAIL", "regex": true}',
-        response: '{"event": "search_results", "pattern": "error|FAIL", "matches": [{"card": 0, "lineNumber": 12, "line": "FAIL src/bad.test.ts", "stream": "stderr"}], "totalMatches": 1, "truncated": false}',
+        scenario: 'Search across all commands',
+        command: '{"cmd": "search", "pattern": "error|FAIL", "regex": true}',
+        note: 'Returns `search_results` with every matching line, the card it came from, and which stream (stdout/stderr).',
       },
       {
-        title: 'Get only stderr from a card:',
-        request: '{"cmd": "get", "card": 0, "stream": "stderr"}',
+        scenario: 'Get only errors from a specific command',
+        command: '{"cmd": "get", "card": 0, "stream": "stderr"}',
+        note: 'Returns only stderr lines from card 0. Use `"stream": "stdout"` for stdout only, or omit for both.',
       },
     ],
     commands: [
-      { name: 'run', requiredFields: '`command`', optionalFields: '`wait`, `timeout`, `cwd`, `env`, `silent`, `tag`', description: 'Run a shell command' },
-      { name: 'get', requiredFields: '`card`', optionalFields: '`lines`, `stream`', description: 'Get output from a card' },
-      { name: 'list', requiredFields: '\u2014', optionalFields: '`status`', description: 'List all cards' },
-      { name: 'search', requiredFields: '`pattern`', optionalFields: '`regex`, `ignoreCase`, `stream`, `cards`, `limit`', description: 'Search across card output' },
-      { name: 'kill', requiredFields: '`card`', optionalFields: '`signal`', description: 'Kill an active command' },
-      { name: 'summary', requiredFields: '\u2014', optionalFields: '\u2014', description: 'Get counts by status' },
-      { name: 'clear', requiredFields: '\u2014', optionalFields: '`killActive`', description: 'Kill active + clear all cards' },
-      { name: 'exit', requiredFields: '\u2014', optionalFields: '\u2014', description: 'Shut down htui' },
-    ],
-    commandDetails: [
-      {
-        heading: 'Run options detail',
-        items: [
-          '`wait: true` \u2014 buffer output, return all lines in `card_done` (recommended)',
-          '`timeout: ms` \u2014 kill command after timeout, status becomes `"timeout"`',
-          '`silent: true` \u2014 suppress streaming `card_output` events (like `wait` but no lines in response)',
-          '`cwd: "/path"` \u2014 working directory for the command',
-          '`env: {"KEY": "val"}` \u2014 extra environment variables',
-          '`tag: "build"` \u2014 label to identify the card in events',
-        ],
-      },
-      {
-        heading: 'Get options detail',
-        items: [
-          '`lines: [start, end]` \u2014 slice of output lines (0-indexed)',
-          '`stream: "stdout"|"stderr"` \u2014 filter by output stream',
-        ],
-      },
-      {
-        heading: 'Search options detail',
-        items: [
-          '`regex: true` \u2014 treat pattern as regex',
-          '`ignoreCase: true` \u2014 case-insensitive (default: true)',
-          '`stream: "stdout"|"stderr"` \u2014 search only one stream',
-          '`cards: [0, 2]` \u2014 search only specific cards',
-          '`limit: 50` \u2014 max matches to return (default: 100)',
-        ],
-      },
-      {
-        heading: 'List options detail',
-        items: [
-          '`status: "active"` or `status: ["done", "failed"]` \u2014 filter by card status',
-        ],
-      },
+      { name: 'run', keyFields: '`command` (required), `wait`, `timeout`, `cwd`, `env`, `tag`', description: 'Run a shell command' },
+      { name: 'get', keyFields: '`card` (required), `lines: [start, end]`, `stream`', description: 'Get output from a card' },
+      { name: 'search', keyFields: '`pattern` (required), `regex`, `ignoreCase`, `stream`, `cards`, `limit`', description: 'Search across all card output' },
+      { name: 'list', keyFields: '`status`', description: 'List all cards' },
+      { name: 'kill', keyFields: '`card` (required), `signal`', description: 'Kill a running command' },
+      { name: 'summary', keyFields: '\u2014', description: 'Get counts by status' },
+      { name: 'clear', keyFields: '`killActive`', description: 'Kill active + clear all cards' },
+      { name: 'exit', keyFields: '\u2014', description: 'Shut down htui' },
     ],
     events: [
-      { event: 'ready', keyFields: '`version: 2`', when: 'htui started' },
-      { event: 'card_created', keyFields: '`card`, `title`, `status`', when: 'Command started' },
-      { event: 'card_output', keyFields: '`card`, `line`, `stream`', when: 'New output line (streaming mode only)' },
-      { event: 'card_done', keyFields: '`card`, `status`, `exitCode`, `duration`, `lineCount`, `lines?`', when: 'Command finished' },
-      { event: 'card_content', keyFields: '`card`, `lines`, `status`, `exitCode`, `duration`', when: 'Response to `get`' },
-      { event: 'card_killed', keyFields: '`card`, `signal`', when: 'Response to `kill`' },
+      { event: 'ready', keyFields: '`version`', when: 'htui started' },
+      { event: 'card_created', keyFields: '`card`, `title`', when: 'Command launched' },
+      { event: 'card_done', keyFields: '`card`, `status`, `exitCode`, `lines[]`', when: 'Command finished (with `wait: true`)' },
+      { event: 'card_content', keyFields: '`card`, `lines`, `status`', when: 'Response to `get`' },
+      { event: 'search_results', keyFields: '`matches[]`, `totalMatches`', when: 'Response to `search`' },
       { event: 'cards', keyFields: '`cards[]`', when: 'Response to `list`' },
-      { event: 'search_results', keyFields: '`pattern`, `matches[]`, `totalMatches`, `truncated`', when: 'Response to `search`' },
-      { event: 'summary', keyFields: '`total`, `active`, `done`, `failed`, `killed`, `timeout`', when: 'Response to `summary`' },
-      { event: 'cleared', keyFields: '`killedCards`, `clearedCards`', when: 'Response to `clear`' },
       { event: 'error', keyFields: '`message`', when: 'Invalid command or args' },
-    ],
-    cardStatuses: ['active', 'done', 'failed', 'killed', 'timeout'],
-    tips: [
-      '**Always use `wait: true`** unless you need real-time streaming for long-running processes',
-      '**Set `timeout`** on every `wait` command to avoid hanging (30s for tests, 60s for builds)',
-      '**Use `search`** to find errors/failures instead of scanning all output lines manually',
-      '**Use `get` with `stream: "stderr"`** to isolate error output',
-      '**Cards are numbered 0, 1, 2...** \u2014 use `list` if you lose track',
-      '**One htui session per workspace** \u2014 start once, reuse for all commands',
     ],
   };
 }
 
 // ─── Layer 2: Renderers ────────────────────────────────────────────
 
-function renderAgentsMd(model: InstructionModel): string {
+function renderFullInstructions(model: InstructionModel): string {
   const lines: string[] = [];
 
-  lines.push('# htui \u2014 Agent Instructions');
+  // Directive
+  lines.push('# htui — Terminal for AI Agents');
   lines.push('');
-  lines.push(model.summary);
+  lines.push(model.directive);
   lines.push('');
 
-  // Quick Start
-  lines.push('## Quick Start');
+  // When to use
+  lines.push('## When to use htui');
   lines.push('');
-  lines.push('Start htui once per session:');
+  for (const item of model.useWhen) {
+    lines.push(`- ${item}`);
+  }
+  lines.push('');
+
+  // When NOT to use
+  lines.push('## When NOT to use htui');
+  lines.push('');
+  for (const item of model.dontUseWhen) {
+    lines.push(`- ${item}`);
+  }
+  lines.push('');
+
+  // Setup
+  lines.push('## Setup');
+  lines.push('');
+  lines.push('Start htui once per session in an async terminal, then send JSON commands on stdin:');
+  lines.push('');
   lines.push('```');
   lines.push(model.startupCommand);
   lines.push('```');
   lines.push('');
-  lines.push('Then run commands:');
-  lines.push('```json');
-  lines.push(model.quickStartRequest);
-  lines.push('```');
-  lines.push(model.quickStartNote);
+  lines.push('htui responds with `{"event": "ready", "version": 2}`. It stays running — reuse it for all commands in the session.');
   lines.push('');
 
-  // Quick Pattern
-  lines.push('## Quick Pattern \u2014 Use This for Most Commands');
+  // Core Patterns
+  lines.push('## Core Patterns');
   lines.push('');
-  lines.push(model.quickPatternIntro);
-  lines.push('');
-  for (const ex of model.quickPatternExamples) {
-    lines.push(`**${ex.title}**`);
+  for (const p of model.patterns) {
+    lines.push(`### ${p.scenario}`);
+    lines.push('');
     lines.push('```json');
-    lines.push(ex.request);
+    lines.push(p.command);
     lines.push('```');
-    if (ex.response) {
-      lines.push('Response:');
-      lines.push('```json');
-      lines.push(ex.response);
-      lines.push('```');
-    }
+    lines.push('');
+    lines.push(p.note);
     lines.push('');
   }
 
-  // All Commands table
-  lines.push('## All Commands');
+  // Commands
+  lines.push('## Commands');
   lines.push('');
-  lines.push('| Command | Required Fields | Optional Fields | Description |');
-  lines.push('|---------|----------------|-----------------|-------------|');
+  lines.push('| Command | Key Fields | Description |');
+  lines.push('|---------|-----------|-------------|');
   for (const cmd of model.commands) {
-    lines.push(`| \`${cmd.name}\` | ${cmd.requiredFields} | ${cmd.optionalFields} | ${cmd.description} |`);
+    lines.push(`| \`${cmd.name}\` | ${cmd.keyFields} | ${cmd.description} |`);
   }
   lines.push('');
 
-  // Command details
-  for (const detail of model.commandDetails) {
-    lines.push(`### ${detail.heading}`);
-    lines.push('');
-    for (const item of detail.items) {
-      lines.push(`- ${item}`);
-    }
-    lines.push('');
-  }
-
-  // All Events table
-  lines.push('## All Events');
+  // Events
+  lines.push('## Events');
   lines.push('');
   lines.push('| Event | Key Fields | When |');
   lines.push('|-------|-----------|------|');
@@ -214,80 +163,76 @@ function renderAgentsMd(model: InstructionModel): string {
     lines.push(`| \`${ev.event}\` | ${ev.keyFields} | ${ev.when} |`);
   }
   lines.push('');
-
-  lines.push(`Card statuses: ${model.cardStatuses.map(s => `\`${s}\``).join(', ')}`);
-  lines.push('');
-
-  // Tips
-  lines.push('## Tips');
-  lines.push('');
-  for (const tip of model.tips) {
-    lines.push(`- ${tip}`);
-  }
+  lines.push('Card statuses: `active`, `done`, `failed`, `killed`, `timeout`');
   lines.push('');
 
   return lines.join('\n');
 }
 
-function renderShim(model: InstructionModel): string {
-  return renderAgentsMd(model);
-}
-
 function renderCopilotInstructions(model: InstructionModel): string {
-  return renderShim(model);
+  return renderFullInstructions(model);
 }
 
 function renderCopilotPathInstructions(model: InstructionModel): string {
-  return '---\napplyTo: \'**\'\n---\n' + renderShim(model);
+  return '---\napplyTo: \'**\'\n---\n' + renderFullInstructions(model);
 }
 
 function renderClaudeMd(model: InstructionModel): string {
-  return renderShim(model);
+  return renderFullInstructions(model);
 }
 
 function renderCursorRule(model: InstructionModel): string {
-  return '---\ndescription: Use htui --api for all terminal commands in this repo\nglobs: \nalwaysApply: true\n---\n' + renderShim(model);
+  return '---\ndescription: Use htui --api for terminal commands in multi-command workflows\nglobs: \nalwaysApply: true\n---\n' + renderFullInstructions(model);
 }
 
 function renderCursorRulesLegacy(model: InstructionModel): string {
-  return renderShim(model);
+  return renderFullInstructions(model);
 }
 
 function renderWindsurfRules(model: InstructionModel): string {
-  return renderShim(model);
+  return renderFullInstructions(model);
 }
 
 function renderGeminiMd(model: InstructionModel): string {
-  return renderShim(model);
+  return renderFullInstructions(model);
 }
 
 function renderAntigravitySkill(model: InstructionModel): string {
   const lines: string[] = [];
 
-  lines.push('# htui');
+  lines.push('# htui — Terminal for AI Agents');
   lines.push('');
-  lines.push(model.summary);
+  lines.push(model.directive);
   lines.push('');
-  lines.push('## Start htui');
+
+  // Setup
+  lines.push('## Setup');
   lines.push('');
   lines.push('```');
   lines.push(model.startupCommand);
   lines.push('```');
   lines.push('');
-  lines.push('## Quick start');
+
+  // Core Patterns only
+  lines.push('## Core Patterns');
   lines.push('');
-  lines.push('```json');
-  lines.push(model.quickStartRequest);
-  lines.push('```');
-  lines.push(model.quickStartNote);
-  lines.push('');
+  for (const p of model.patterns) {
+    lines.push(`### ${p.scenario}`);
+    lines.push('');
+    lines.push('```json');
+    lines.push(p.command);
+    lines.push('```');
+    lines.push('');
+    lines.push(p.note);
+    lines.push('');
+  }
+
+  // Compact commands
   lines.push('## Commands');
   lines.push('');
   for (const cmd of model.commands) {
-    lines.push(`- **${cmd.name}** \u2014 ${cmd.description}`);
+    lines.push(`- **${cmd.name}** — ${cmd.description}`);
   }
-  lines.push('');
-  lines.push('See AGENTS.md for full event protocol and options.');
   lines.push('');
 
   return lines.join('\n');

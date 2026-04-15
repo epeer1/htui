@@ -721,37 +721,30 @@ With no arguments, `htui init` shows an interactive menu where you pick your age
 
 | Agent | Default file | Optional (with flag) |
 |-------|-------------|---------------------|
-| *(always)* | `AGENTS.md` (full protocol) | — |
 | `copilot` | `.github/copilot-instructions.md` | `--path-instructions` → `.github/instructions/htui.instructions.md` |
 | `claude` | `CLAUDE.md` | — |
 | `cursor` | `.cursor/rules/htui.mdc` | `--legacy` → `.cursorrules` |
 | `windsurf` | `.windsurfrules` | — |
 | `antigravity` | `GEMINI.md` | `--skill` → `skills/htui/SKILL.md` |
 
-`AGENTS.md` is the **canonical source of truth** — it contains the full API mode protocol (all commands, events, and options). Agent-specific files are short shims that tell the agent to use `htui --api` and point to `AGENTS.md` for the complete reference. This avoids duplicating the protocol in every file and keeps agent context windows small.
+Each file is **self-contained** — it includes the full protocol (when to use htui, setup, core patterns, all commands and events). No separate reference file needed.
 
 ### Upsert Behavior
 
 Most agent files use `<!-- htui:start -->` / `<!-- htui:end -->` markers so that re-running `htui init` **updates in place** without touching your existing content. Files outside the markers are preserved.
 
-`AGENTS.md`, `.cursor/rules/htui.mdc`, and `skills/htui/SKILL.md` are fully owned by htui and overwritten entirely on each run.
+`.cursor/rules/htui.mdc` and `skills/htui/SKILL.md` are fully owned by htui and overwritten entirely on each run.
 
-### Workflow
+### When Agents Use htui
 
-Once initialized, your AI agent will:
+The instructions tell your agent to use htui **instead of its built-in terminal tool** when it needs to:
 
-```
-1. Start htui --api (once per session)
-2. For each terminal command:
-   a. Send {"cmd": "run", "command": "npm test"}
-   b. Read card_output events as they stream
-   c. Wait for card_done to know it finished
-   d. Check exitCode and status
-3. Query previous commands with {"cmd": "get", "card": N}
-4. Send {"cmd": "exit"} when done
-```
+- **Run multiple related commands** — build, lint, test, then search all outputs for errors at once
+- **Search across output** — regex search without reading every command's output individually
+- **Isolate errors** — get only stderr from any command
+- **Handle long output** — nothing is truncated; retrieve any slice with line ranges
 
-This replaces the typical "run command, parse raw terminal output, hope nothing was truncated" workflow with structured, queryable data.
+For simple one-off commands, the agent uses its built-in terminal tool. htui earns its keep on multi-command workflows.
 
 ---
 

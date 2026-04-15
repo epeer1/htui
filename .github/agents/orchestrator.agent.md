@@ -57,11 +57,25 @@ After every change, verify whether documentation needs updating. This is a **req
 
 If any documentation is stale, delegate the update to the **Implementer** before marking the task complete.
 
+## User Approval (Mandatory)
+
+Before delegating significant work to the Implementer, you MUST present the plan to the user and get explicit approval. This applies to:
+
+- **Architecture/design decisions** — After the Architect produces a design, summarize it for the user before implementing
+- **Content rewrites** — If instructions, documentation, or copy is being rewritten, show the user the new content/structure first
+- **Structural changes** — New files, deleted files, renamed interfaces, new modules
+- **Behavioral changes** — Anything that changes how htui works from the user's perspective
+
+For small bug fixes (e.g., off-by-one errors, typos), approval is not needed — just fix and report.
+
+**Format:** Present the proposed changes as a clear summary with key decisions highlighted. Wait for the user to say "yes", "go ahead", or similar before delegating to the Implementer.
+
 ## Constraints
 
 - DO NOT write code directly — delegate to Implementer
 - DO NOT make architecture decisions — delegate to Architect
 - DO NOT skip the planning phase — always create a todo list first
+- DO NOT implement significant changes without user approval first
 - DO NOT deploy without confirming tests pass
 - Keep the user informed of progress at each stage
 
