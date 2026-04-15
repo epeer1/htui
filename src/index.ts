@@ -5,5 +5,6 @@ export { Terminal, Style, Keys } from './terminal.js';
 export { Chunker, ChunkOptions, ChunkMode } from './chunker.js';
 export { runCommands } from './runner.js';
 export { ApiMode } from './api.js';
+export { execCommand, ExecOptions, ExecResult } from './exec.js';
 export { initAgentInstructions } from './init.js';
 export { multiSelect, SelectOption, MultiSelectResult } from './select.js';

@@ -51,6 +51,7 @@
   - [Run Mode](#run-mode)
   - [Pipe Mode](#pipe-mode)
   - [Wrap Mode](#wrap-mode)
+  - [Exec Mode](#exec-mode)
   - [API Mode](#api-mode)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Chunking Strategies](#chunking-strategies)
@@ -113,6 +114,11 @@ npm test 2>&1 | htui
 
 # Wrap a command (works everywhere, including Windows)
 htui wrap "npm test"
+```
+
+```bash
+# Single command with structured JSON output (for scripts/agents)
+htui exec "npm test"
 ```
 
 **Requirements:** Node.js >= 18. Zero runtime dependencies.
@@ -235,6 +241,38 @@ htui wrap "npm test" --chunk-by time --interval 5s  # new card every 5 seconds
 htui wrap "npm test" --chunk-by blank        # new card on blank lines
 ```
 
+### Exec Mode
+
+```bash
+htui exec "npm test"
+htui exec --timeout 30000 "npm run build"
+htui exec --cwd ./backend "python manage.py test"
+```
+
+Single-call structured output for AI agents and scripts. Runs one command, waits for it to finish, prints a single JSON object to stdout:
+
+```json
+{
+  "ok": true,
+  "exitCode": 0,
+  "status": "done",
+  "duration": "2.1s",
+  "stdout": ["PASS utils.test.ts", "Tests: 5 passed"],
+  "stderr": [],
+  "output": ["PASS utils.test.ts", "Tests: 5 passed"],
+  "lineCount": 2,
+  "command": "npm test"
+}
+```
+
+- `stdout` and `stderr` are separated — no interleaving
+- `output` preserves arrival order (what you'd see in a terminal)
+- `ok` is `true` when exit code is 0
+- Process exits with the child's exit code
+- Use `--timeout` to kill long-running commands (returns partial output with `"status": "timeout"`)
+
+For multi-command sessions with search and history, use [API Mode](#api-mode).
+
 ### API Mode
 
 ```bash
@@ -346,6 +384,7 @@ src/
 ├── runner.ts       Run mode — sequential command execution with status tracking
 ├── chunker.ts      Pipe/wrap mode — distributes lines into cards by strategy
 ├── api.ts          API mode — JSONL protocol, command spawning, event emission
+├── exec.ts         Exec mode — single-call JSON output for AI agents
 ├── init.ts         Agent instruction installer — creates config files for AI agents
 └── index.ts        Public barrel exports
 ```
@@ -405,6 +444,7 @@ The following diagram shows how data flows from user input to rendered output:
 2. **Pipe/wrap mode:** `cli → app → chunker → Card[] → renderer → terminal`
 3. **Shell mode:** `cli → app → spawn() → Card[] → renderer → terminal`
 4. **API mode:** `cli → api → spawn() → Card[] → stdout (JSONL)`
+5. **Exec mode:** `cli → exec → spawn() → JSON stdout`
 
 ### Rendering Pipeline
 
@@ -850,6 +890,7 @@ Where to look when making changes:
 | Change run mode behavior | `runner.ts` — runCommands() |
 | Change keyboard shortcuts | `app.ts` — handleNormalInput(), handleShellInput() |
 | Change API protocol | `api.ts` — ApiMode class |
+| Change exec mode behavior | `exec.ts` — execCommand() |
 | Change terminal handling | `terminal.ts` — Terminal class |
 | Add an agent target | `init.ts` — TARGETS array |
 
@@ -873,6 +914,7 @@ Where to look when making changes:
 - [x] Pipe mode — `command | htui` with page-fill, time, and blank chunking
 - [x] Wrap mode — `htui wrap "command"` for cross-platform paged output
 - [x] API mode — JSONL protocol for AI agents (`htui --api`)
+- [x] Exec mode — single-call structured JSON output (`htui exec "command"`)
 - [x] Horizontal card rendering with box-drawn borders
 - [x] Arrow key scrolling + card expand/collapse
 - [x] Auto-follow mode (`f` toggle)

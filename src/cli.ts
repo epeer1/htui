@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { App, AppOptions } from './app.js';
 import { ChunkOptions } from './chunker.js';
 import { ApiMode } from './api.js';
 import { initAgentInstructions, printInitHelp } from './init.js';
+import { execCommand } from './exec.js';
+
+const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
 
 function printUsage(): void {
   console.log(`
@@ -15,6 +20,7 @@ Usage:
   htui wrap "command"             Run a command with paged output (works everywhere)
   command | htui                  Pipe output into horizontal pages
   command | htui --chunk-by time --interval 5s
+  htui exec "command"             Run command, output JSON (for AI agents)
   htui --api                      Machine-readable JSONL mode for AI agents
   htui --api --api-cwd /path      API mode with custom working directory
 
@@ -69,7 +75,7 @@ function parseArgs(argv: string[]): AppOptions {
   }
 
   if (args.includes('--version') || args.includes('-v')) {
-    console.log('htui 0.1.0');
+    console.log(`htui ${pkg.version}`);
     process.exit(0);
   }
 
@@ -170,6 +176,54 @@ async function main(): Promise<void> {
       return;
     }
     await initAgentInstructions(process.cwd(), process.argv.slice(3));
+    return;
+  }
+
+  // Exec mode: single-call synchronous command runner for AI agents
+  if (process.argv[2] === 'exec') {
+    const args = process.argv.slice(3);
+    let timeout: number | undefined;
+    let cwd: string | undefined;
+    let command: string | undefined;
+
+    const dashDashIdx = args.indexOf('--');
+    if (dashDashIdx >= 0) {
+      // Everything after -- is the command
+      command = args.slice(dashDashIdx + 1).join(' ');
+      // Parse flags before --
+      for (let i = 0; i < dashDashIdx; i++) {
+        if (args[i] === '--timeout' && args[i + 1]) {
+          timeout = parseInt(args[i + 1], 10);
+          i++;
+        } else if (args[i] === '--cwd' && args[i + 1]) {
+          cwd = args[i + 1];
+          i++;
+        }
+      }
+    } else {
+      // Parse flags and collect remaining as command
+      const rest: string[] = [];
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] === '--timeout' && args[i + 1]) {
+          timeout = parseInt(args[i + 1], 10);
+          i++;
+        } else if (args[i] === '--cwd' && args[i + 1]) {
+          cwd = args[i + 1];
+          i++;
+        } else {
+          rest.push(args[i]);
+        }
+      }
+      command = rest.join(' ');
+    }
+
+    if (!command) {
+      console.error('Error: htui exec requires a command');
+      console.error('Usage: htui exec "command"');
+      process.exit(1);
+    }
+
+    await execCommand({ command, cwd, timeout });
     return;
   }
 

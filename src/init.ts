@@ -39,7 +39,7 @@ interface InstructionModel {
 
 function buildInstructionModel(): InstructionModel {
   return {
-    directive: '**Use htui instead of your built-in terminal tool when you need to run multiple commands in a session, search across their output, or isolate stderr.** htui keeps every command\'s output in a queryable card — nothing is truncated, nothing is lost.\n\nFor simple one-off commands, use your built-in terminal tool. htui earns its keep on multi-command workflows.',
+    directive: '**Use `htui exec "command"` for single commands** — one call, structured JSON output with stdout, stderr, exit code, and duration.\n\n**Use `htui --api` for multi-command sessions** — when you need to run several commands, search across their output, or re-read previous results.\n\nFor simple one-off commands where you don\'t need structured output, use your built-in terminal tool.',
     useWhen: [
       '**Multiple related commands** — run build, lint, test, then search all outputs for errors at once',
       '**Searching output** — regex search across all command outputs without reading them individually',
@@ -48,11 +48,16 @@ function buildInstructionModel(): InstructionModel {
       '**Tracking a session** — list all commands, check statuses, re-read any previous output',
     ],
     dontUseWhen: [
-      'Single one-off command where you just need the result',
+      'Simple command where you don\'t need structured output — use your built-in terminal tool directly',
       'Interactive commands that need terminal input (htui commands are non-interactive)',
     ],
     startupCommand: 'node node_modules/@epeer1/htui/dist/cli.js --api',
     patterns: [
+      {
+        scenario: 'Single command (one tool call)',
+        command: 'htui exec "npm test"',
+        note: 'Run via `run_in_terminal` with `mode=sync`. Returns JSON: `{"ok": true, "exitCode": 0, "stdout": [...], "stderr": [...], "duration": "2.1s"}`',
+      },
       {
         scenario: 'Run a command and get output',
         command: '{"cmd": "run", "command": "npm test", "wait": true, "timeout": 30000}',
@@ -129,6 +134,16 @@ function renderFullInstructions(model: InstructionModel): string {
   lines.push('');
   lines.push('htui responds with `{"event": "ready", "version": 2}`. It stays running — reuse it for all commands in the session.');
   lines.push('');
+  lines.push('### Single command (no session needed)');
+  lines.push('');
+  lines.push('For one-off commands, use `exec` — no session setup required:');
+  lines.push('');
+  lines.push('```');
+  lines.push('htui exec "npm test"');
+  lines.push('```');
+  lines.push('');
+  lines.push('Returns a single JSON object with `ok`, `exitCode`, `stdout`, `stderr`, `duration`.');
+  lines.push('');
 
   // Core Patterns
   lines.push('## Core Patterns');
@@ -136,7 +151,8 @@ function renderFullInstructions(model: InstructionModel): string {
   for (const p of model.patterns) {
     lines.push(`### ${p.scenario}`);
     lines.push('');
-    lines.push('```json');
+    const fence = p.command.startsWith('{') ? '```json' : '```';
+    lines.push(fence);
     lines.push(p.command);
     lines.push('```');
     lines.push('');
@@ -219,7 +235,8 @@ function renderAntigravitySkill(model: InstructionModel): string {
   for (const p of model.patterns) {
     lines.push(`### ${p.scenario}`);
     lines.push('');
-    lines.push('```json');
+    const fence = p.command.startsWith('{') ? '```json' : '```';
+    lines.push(fence);
     lines.push(p.command);
     lines.push('```');
     lines.push('');
@@ -529,8 +546,8 @@ Flags:
   --skill               Antigravity: also write skills/htui/SKILL.md
   --path-instructions   Copilot: also write .github/instructions/htui.instructions.md
 
-AGENTS.md is always created/updated as the canonical instruction file.
-Agent-specific files get htui instructions wrapped in <!-- htui:start/end -->
-markers so they can be updated in place on subsequent runs.
+Each agent file is self-contained with the full protocol.
+Files use <!-- htui:start/end --> markers so re-running updates in place
+without touching your existing content.
 `);
 }
