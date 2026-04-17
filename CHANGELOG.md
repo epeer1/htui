@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.0] - 2026-04-17
 
 ### Added
 - `htui mcp` — MCP (Model Context Protocol) stdio server exposing 8 tools: `htui_exec`, `htui_run`, `htui_tail`, `htui_get`, `htui_search`, `htui_list`, `htui_kill`, `htui_summary`.
