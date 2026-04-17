@@ -160,11 +160,8 @@ export class ApiMode {
       return;
     }
 
-    const isWindows = process.platform === 'win32';
-    const shell = isWindows ? 'cmd.exe' : '/bin/sh';
-    const shellFlag = isWindows ? '/c' : '-c';
-
-    const child = spawn(shell, [shellFlag, command], {
+    const child = spawn(command, {
+      shell: true,
       stdio: ['ignore', 'pipe', 'pipe'],
       cwd,
       env,

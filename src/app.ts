@@ -315,11 +315,8 @@ export class App {
     this.scheduleRender();
 
     // Spawn the command
-    const isWindows = process.platform === 'win32';
-    const shell = isWindows ? 'cmd.exe' : '/bin/sh';
-    const shellFlag = isWindows ? '/c' : '-c';
-
-    const child = spawn(shell, [shellFlag, command], {
+    const child = spawn(command, {
+      shell: true,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: process.env,
     });
@@ -541,11 +538,8 @@ export class App {
     });
 
     // Spawn the command as a child process
-    const isWindows = process.platform === 'win32';
-    const shell = isWindows ? 'cmd.exe' : '/bin/sh';
-    const shellFlag = isWindows ? '/c' : '-c';
-
-    const child = spawn(shell, [shellFlag, command], {
+    const child = spawn(command, {
+      shell: true,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: process.env,
     });

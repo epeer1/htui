@@ -216,9 +216,136 @@ export class Terminal {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Color support detection + palette
+// ---------------------------------------------------------------------------
+
+export const supportsTruecolor: boolean = (function () {
+  const v = process.env.COLORTERM;
+  return v === 'truecolor' || v === '24bit' || process.env.FORCE_COLOR === '3';
+})();
+
+export const PALETTE = {
+  accent:        [0x5F, 0xB3, 0xB3],
+  statusDone:    [0x8F, 0xBF, 0x8F],
+  statusFailed:  [0xD0, 0x8F, 0x8F],
+  statusActive:  [0xD9, 0xB3, 0x82],
+  statusQueued:  [0x7A, 0x8C, 0xA0],
+  statusKilled:  [0x8A, 0x8A, 0x8A],
+  bg:            [0x1A, 0x1C, 0x20],
+  surface:       [0x3A, 0x3F, 0x47],
+  textMuted:     [0x88, 0x91, 0xA0],
+  text:          [0xD4, 0xD8, 0xDF],
+} as const;
+
+type PaletteRole = keyof typeof PALETTE;
+type PillBgRole =
+  | 'statusDone'
+  | 'statusFailed'
+  | 'statusActive'
+  | 'statusQueued'
+  | 'statusKilled'
+  | 'bg';
+
+/** 16-color fallback foreground codes keyed by palette role. */
+const FG_FALLBACK: Record<PaletteRole, string> = {
+  accent:       '\x1b[36m',           // cyan
+  statusDone:   '\x1b[32m',           // green
+  statusFailed: '\x1b[31m',           // red
+  statusActive: '\x1b[33m',           // yellow
+  statusQueued: '\x1b[34m',           // blue
+  statusKilled: '\x1b[90m',           // gray
+  bg:           '\x1b[30m',           // black fg
+  surface:      '\x1b[90m',           // gray fg
+  textMuted:    '\x1b[2m\x1b[37m',    // dim white
+  text:         '\x1b[37m',           // white
+};
+
+/** 16-color fallback background codes keyed by palette role. */
+const BG_FALLBACK: Record<PaletteRole, string> = {
+  accent:       '\x1b[46m',           // bg cyan
+  statusDone:   '\x1b[42m',           // bg green
+  statusFailed: '\x1b[41m',           // bg red
+  statusActive: '\x1b[43m',           // bg yellow
+  statusQueued: '\x1b[44m',           // bg blue
+  statusKilled: '\x1b[100m',          // bg gray
+  bg:           '\x1b[40m',           // bg black
+  surface:      '\x1b[100m',          // bg gray
+  textMuted:    '\x1b[47m',           // bg white
+  text:         '\x1b[107m',          // bg bright white
+};
+
+const RESET = '\x1b[0m';
+
+/** 24-bit truecolor foreground; falls back to nearest 16-color cyan/etc. */
+export function rgb(r: number, g: number, b: number): string {
+  if (supportsTruecolor) return `\x1b[38;2;${r};${g};${b}m`;
+  return nearest16Fg(r, g, b);
+}
+
+/** 24-bit truecolor background; falls back to nearest 16-color bg. */
+export function bgRgb(r: number, g: number, b: number): string {
+  if (supportsTruecolor) return `\x1b[48;2;${r};${g};${b}m`;
+  return nearest16Bg(r, g, b);
+}
+
+function nearest16Fg(r: number, g: number, b: number): string {
+  // Very rough 8-color fallback; accuracy isn't critical — semantic helpers
+  // route through FG_FALLBACK for palette roles.
+  const codes = [30, 31, 32, 33, 34, 35, 36, 37];
+  const anchors: [number, number, number][] = [
+    [0, 0, 0], [205, 0, 0], [0, 205, 0], [205, 205, 0],
+    [0, 0, 238], [205, 0, 205], [0, 205, 205], [229, 229, 229],
+  ];
+  let best = 7;
+  let bestD = Infinity;
+  for (let i = 0; i < 8; i++) {
+    const [ar, ag, ab] = anchors[i];
+    const d = (r - ar) ** 2 + (g - ag) ** 2 + (b - ab) ** 2;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return `\x1b[${codes[best]}m`;
+}
+
+function nearest16Bg(r: number, g: number, b: number): string {
+  const fg = nearest16Fg(r, g, b);
+  // Shift 30-37 → 40-47.
+  return fg.replace(/\x1b\[(\d+)m/, (_m, n) => `\x1b[${Number(n) + 10}m`);
+}
+
+function fgFor(role: PaletteRole): string {
+  if (supportsTruecolor) {
+    const [r, g, b] = PALETTE[role];
+    return `\x1b[38;2;${r};${g};${b}m`;
+  }
+  return FG_FALLBACK[role];
+}
+
+function bgFor(role: PaletteRole): string {
+  if (supportsTruecolor) {
+    const [r, g, b] = PALETTE[role];
+    return `\x1b[48;2;${r};${g};${b}m`;
+  }
+  return BG_FALLBACK[role];
+}
+
+function wrap(role: PaletteRole, extra = ''): (s: string) => string {
+  return (s: string) => `${extra}${fgFor(role)}${s}${RESET}`;
+}
+
+/** For pill bg roles, pick a contrasting fg palette role. */
+const PILL_FG: Record<PillBgRole, PaletteRole> = {
+  statusDone:   'bg',
+  statusFailed: 'bg',
+  statusActive: 'bg',
+  statusQueued: 'text',
+  statusKilled: 'text',
+  bg:           'text',
+};
+
 // ANSI style helpers
 export const Style = {
-  reset: '\x1b[0m',
+  reset: RESET,
   bold: '\x1b[1m',
   dim: '\x1b[2m',
   inverse: '\x1b[7m',
@@ -239,6 +366,26 @@ export const Style = {
   bgCyan: '\x1b[46m',
   magenta: '\x1b[35m',
   brightWhite: '\x1b[97m',
+
+  // --- Semantic palette helpers (wrap input + reset) ---
+  accent:       wrap('accent'),
+  accentBold:   wrap('accent', '\x1b[1m'),
+  accentDim:    wrap('accent', '\x1b[2m'),
+
+  statusDone:   wrap('statusDone'),
+  statusFailed: wrap('statusFailed'),
+  statusActive: wrap('statusActive'),
+  statusQueued: wrap('statusQueued'),
+  statusKilled: wrap('statusKilled'),
+
+  surface:      wrap('surface'),
+  textMuted:    wrap('textMuted'),
+  text:         wrap('text'),
+
+  pill(s: string, bgRole: PillBgRole): string {
+    const fgRole = PILL_FG[bgRole];
+    return `${bgFor(bgRole)}${fgFor(fgRole)}${s}${RESET}`;
+  },
 } as const;
 
 // Key constants

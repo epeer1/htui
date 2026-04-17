@@ -59,13 +59,10 @@ export function execCommand(options: ExecOptions): Promise<never> {
 
   const startTime = Date.now();
 
-  const isWindows = process.platform === 'win32';
-  const shell = isWindows ? 'cmd.exe' : '/bin/sh';
-  const shellFlag = isWindows ? '/c' : '-c';
-
   const env = options.env ? { ...process.env, ...options.env } : process.env;
 
-  const child = spawn(shell, [shellFlag, options.command], {
+  const child = spawn(options.command, {
+    shell: true,
     stdio: ['ignore', 'pipe', 'pipe'],
     cwd,
     env,

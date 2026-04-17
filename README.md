@@ -5,6 +5,119 @@
   <em>Horizontal Terminal UI</em>
   <br />
   <br />
+  A local MCP server that gives AI coding agents a fast, structured terminal —<br />
+  plus a live human-facing TUI to watch what they're doing.
+  <br />
+  <br />
+
+  [![npm version](https://img.shields.io/npm/v/@epeer1/htui.svg)](https://www.npmjs.com/package/@epeer1/htui)
+  [![license](https://img.shields.io/npm/l/@epeer1/htui.svg)](https://github.com/epeer1/htui/blob/main/LICENSE)
+  [![node](https://img.shields.io/node/v/@epeer1/htui.svg)](https://nodejs.org)
+  [![zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#how-it-works)
+
+</p>
+
+---
+
+## Why
+
+- Built-in terminal tools (e.g. `run_in_terminal`) are slow and return unstructured output.
+- `htui` runs commands natively, captures stdout / stderr / exit code into structured **cards**, and exposes them to agents via MCP.
+- Humans can open `htui watch` in a side terminal to follow along in real time.
+
+## Install
+
+```bash
+npm i -D @epeer1/htui     # project-local (recommended for reproducibility)
+npm i -g @epeer1/htui     # global
+npx @epeer1/htui init     # one-shot, no install
+```
+
+Requires Node.js >= 18. Zero runtime dependencies.
+
+## Quick start
+
+1. `htui init` — walks you through selecting agents, writes `.vscode/mcp.json`, updates agent instruction files, adds the `htui:watch` npm script.
+2. Reload VS Code (or your agent client) so it picks up the MCP server.
+3. (Optional) Run `htui watch` in a side terminal to watch agent activity.
+
+Non-interactive install (all supported agents):
+
+```bash
+htui init --yes
+```
+
+## MCP tools
+
+`htui mcp` exposes 8 tools over stdio:
+
+| Tool | Description |
+|---|---|
+| `htui_exec` | Run a command and wait. Returns `stdout`, `stderr`, `exitCode`, `durationMs`, `cardId`. |
+| `htui_run` | Start a command in the background. Returns `cardId` immediately. |
+| `htui_tail` | Block until a card has new output or finishes. |
+| `htui_get` | Fetch card output by `cardId`. Supports `range: [start, end]` and `stream: 'stdout' \| 'stderr' \| 'both'`. |
+| `htui_search` | Regex / substring search across cards. |
+| `htui_list` | List cards with status, title, exit code, duration. |
+| `htui_kill` | Terminate an active card (`SIGTERM` / `SIGKILL`; Windows uses `taskkill /T /F`). |
+| `htui_summary` | Counts by status plus the 5 most recent cards. |
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `htui init [agents...]` | Configure MCP, agent instructions, and the watch script. `--yes` / `-y` / `--no-prompt` skips prompts. |
+| `htui mcp [--workspace <path>]` | Run as an MCP stdio server. Normally invoked by your agent, not by humans. |
+| `htui watch [--workspace <path>]` | Live TUI view of agent terminal activity. |
+| `htui exec "<command>"` | Fallback: run a command and print a structured JSON result. |
+| `htui --api` | Legacy: interactive JSON-over-stdio API for scripted agents. |
+
+`htui init` auto-detects how `htui` is installed and writes one of these `command` entries into `.vscode/mcp.json`:
+
+```text
+Global:  htui mcp --workspace ${workspaceFolder}
+Local:   node node_modules/@epeer1/htui/dist/cli.js mcp --workspace ${workspaceFolder}
+npx:     npx -y @epeer1/htui mcp --workspace ${workspaceFolder}
+```
+
+An existing `.vscode/mcp.json` is merged in place: other MCP servers are preserved, the file's tab/space indent is preserved, and JSONC comments are stripped on parse.
+
+## `htui watch`
+
+A read-only TUI that connects to the running `htui mcp` server over local IPC and streams live card activity.
+
+- Horizontal card layout with rounded corners
+- `/` open filter prompt
+- `Enter` expand the selected card
+- `q` quit
+
+## How it works
+
+- The MCP server runs as a child of the agent process over stdio.
+- The card store is a ring buffer: up to 5000 lines per stream per card, max 200 cards. Older lines are evicted; `htui_get` / `htui_tail` results set `truncated: true` when that happens.
+- `htui watch` connects to the MCP server over a local socket scoped by a hash of the workspace path — Unix domain socket on POSIX, named pipe on Windows.
+
+## Configuration
+
+- `--workspace <path>` on `htui mcp` and `htui watch` (or the `HTUI_WORKSPACE` environment variable).
+- `HTUI_NO_ANIM=1` disables watch-mode animations.
+
+## Troubleshooting
+
+- **`htui watch` says "waiting for agent"** — the MCP server isn't running; your agent hasn't loaded `.vscode/mcp.json` yet. Reload your editor or agent client.
+- **A second `htui mcp` says "degraded solo"** — one workspace may only have one MCP instance connected to watch. MCP tools still work on both; only the watch client binds once.
+- **Windows timeout kept emitting output** — fixed in this release; update to the latest version.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+<p align="center">
+  <br />
+  <strong>htui</strong>
+  <br />
+  <em>Horizontal Terminal UI</em>
+  <br />
+  <br />
   Turn terminal output into horizontally paged cards.<br />
   Builds, test suites, agent traces, and log streams — visible as a flowing timeline.
   <br />

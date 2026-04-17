@@ -55,11 +55,8 @@ function executeCommand(
   onUpdate: CardUpdateCallback,
 ): Promise<number> {
   return new Promise((resolve, reject) => {
-    const isWindows = process.platform === 'win32';
-    const shell = isWindows ? 'cmd.exe' : '/bin/sh';
-    const shellFlag = isWindows ? '/c' : '-c';
-
-    const child = spawn(shell, [shellFlag, command], {
+    const child = spawn(command, {
+      shell: true,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: process.env,
     });

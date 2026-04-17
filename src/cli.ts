@@ -10,6 +10,22 @@ import { execCommand } from './exec.js';
 
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
 
+const WORKSPACE_MARKERS = ['.git', 'package.json', 'pyproject.toml', 'go.mod', 'Cargo.toml'];
+
+function findWorkspaceRoot(start: string): string {
+  let cur = path.resolve(start);
+  while (true) {
+    for (const marker of WORKSPACE_MARKERS) {
+      if (fs.existsSync(path.join(cur, marker))) {
+        return cur;
+      }
+    }
+    const parent = path.dirname(cur);
+    if (parent === cur) return path.resolve(start);
+    cur = parent;
+  }
+}
+
 function printUsage(): void {
   console.log(`
 htui — Horizontal Terminal UI
@@ -21,6 +37,8 @@ Usage:
   command | htui                  Pipe output into horizontal pages
   command | htui --chunk-by time --interval 5s
   htui exec "command"             Run command, output JSON (for AI agents)
+  htui mcp                        Run as an MCP stdio server (for AI agents)
+  htui watch                      Live view of agent terminal activity
   htui --api                      Machine-readable JSONL mode for AI agents
   htui --api --api-cwd /path      API mode with custom working directory
 
@@ -225,6 +243,65 @@ async function main(): Promise<void> {
 
     await execCommand({ command, cwd, timeout });
     return;
+  }
+
+  // MCP stdio server mode (for AI agents via .vscode/mcp.json)
+  if (process.argv[2] === 'mcp') {
+    const args = process.argv.slice(3);
+    if (args.includes('--help') || args.includes('-h')) {
+      // stdout is JSON-RPC once running; but --help is one-shot text before start.
+      console.log('Usage: htui mcp [--workspace <path>]');
+      return;
+    }
+    let workspaceRoot: string | undefined;
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === '--workspace' && args[i + 1]) {
+        workspaceRoot = args[i + 1];
+        i++;
+      }
+    }
+    if (!workspaceRoot) {
+      workspaceRoot = process.env.HTUI_WORKSPACE || process.cwd();
+    }
+    workspaceRoot = path.resolve(workspaceRoot);
+
+    try {
+      const { runMcpServer } = await import('./mcp.js');
+      await runMcpServer({ workspaceRoot, version: pkg.version });
+      process.exit(0);
+    } catch (err) {
+      process.stderr.write(`htui mcp error: ${(err as Error).stack || (err as Error).message}\n`);
+      process.exit(1);
+    }
+  }
+
+  // Watch mode (live view of agent activity)
+  if (process.argv[2] === 'watch') {
+    const args = process.argv.slice(3);
+    if (args.includes('--help') || args.includes('-h')) {
+      console.log('Usage: htui watch [--workspace <path>]');
+      return;
+    }
+    let workspaceRoot: string | undefined;
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === '--workspace' && args[i + 1]) {
+        workspaceRoot = args[i + 1];
+        i++;
+      }
+    }
+    if (!workspaceRoot) {
+      workspaceRoot = process.env.HTUI_WORKSPACE || findWorkspaceRoot(process.cwd());
+    }
+    workspaceRoot = path.resolve(workspaceRoot);
+
+    try {
+      const { runWatch } = await import('./watch.js');
+      await runWatch({ workspaceRoot, version: pkg.version });
+      process.exit(0);
+    } catch (err) {
+      process.stderr.write(`htui watch error: ${(err as Error).stack || (err as Error).message}\n`);
+      process.exit(1);
+    }
   }
 
   // API mode: machine-readable JSONL for AI agents
