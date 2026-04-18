@@ -1,7 +1,9 @@
 /**
  * MCP JSON-RPC 2.0 stdio server for htui.
  *
- * - LSP-style Content-Length framed messages on stdin/stdout.
+ * - Newline-delimited JSON (NDJSON) messages on stdin/stdout, per the MCP
+ *   stdio transport spec. Each message is a single JSON object on one line
+ *   and MUST NOT contain embedded newlines.
  * - stderr is used for human-readable logging only.
  * - Exposes 8 tools backed by a shared CardStore + ProcessExecutor.
  * - Optionally starts an IpcServer so `htui watch` clients can attach.
@@ -92,7 +94,7 @@ export class McpServer {
   private ipcActive = false;
 
   // Transport state
-  private inputBuf: Buffer = Buffer.alloc(0);
+  private inputBuf: string = '';
   private stdinEnded = false;
 
   // In-flight tool calls -> AbortController for $/cancelRequest
@@ -156,9 +158,10 @@ export class McpServer {
     });
 
     // Stdin wiring.
+    process.stdin.setEncoding('utf8');
     process.stdin.on('data', (chunk: Buffer | string) => {
-      const buf = typeof chunk === 'string' ? Buffer.from(chunk, 'utf8') : chunk;
-      this.onData(buf);
+      const str = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+      this.onData(str);
     });
     process.stdin.on('end', () => {
       this.stdinEnded = true;
@@ -183,31 +186,23 @@ export class McpServer {
   // Transport
   // -------------------------------------------------------------------------
 
-  private onData(chunk: Buffer): void {
-    this.inputBuf = Buffer.concat([this.inputBuf, chunk]);
+  private onData(chunk: string): void {
+    this.inputBuf += chunk;
     for (;;) {
-      const headerEnd = this.inputBuf.indexOf('\r\n\r\n');
-      if (headerEnd < 0) return;
-      const headerStr = this.inputBuf.slice(0, headerEnd).toString('utf8');
-      const match = /Content-Length:\s*(\d+)/i.exec(headerStr);
-      if (!match) {
-        process.stderr.write('htui mcp: missing Content-Length header\n');
-        // Drop up to headerEnd + 4; try to resync.
-        this.inputBuf = this.inputBuf.slice(headerEnd + 4);
-        continue;
-      }
-      const len = parseInt(match[1], 10);
-      const bodyStart = headerEnd + 4;
-      if (this.inputBuf.length < bodyStart + len) return;
-      const body = this.inputBuf.slice(bodyStart, bodyStart + len);
-      this.inputBuf = this.inputBuf.slice(bodyStart + len);
+      const nl = this.inputBuf.indexOf('\n');
+      if (nl < 0) return;
+      let line = this.inputBuf.slice(0, nl);
+      this.inputBuf = this.inputBuf.slice(nl + 1);
+      // Trim trailing CR (CRLF) and any stray whitespace.
+      if (line.endsWith('\r')) line = line.slice(0, -1);
+      line = line.trim();
+      if (line.length === 0) continue;
 
       let parsed: unknown;
       try {
-        parsed = JSON.parse(body.toString('utf8'));
+        parsed = JSON.parse(line);
       } catch {
-        process.stderr.write('htui mcp: parse error on incoming frame\n');
-        // Try to find an id.
+        process.stderr.write('htui mcp: parse error on incoming line\n');
         this.sendError(null, -32700, 'Parse error');
         continue;
       }
@@ -222,9 +217,8 @@ export class McpServer {
 
   private send(msg: JsonRpcResponse | JsonRpcNotification): void {
     const json = JSON.stringify(msg);
-    const header = `Content-Length: ${Buffer.byteLength(json, 'utf8')}\r\n\r\n`;
     try {
-      process.stdout.write(header + json);
+      process.stdout.write(json + '\n');
     } catch (err) {
       process.stderr.write(
         `htui mcp: stdout write failed: ${

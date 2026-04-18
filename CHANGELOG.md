@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.1] - 2026-04-18
+
+### Fixed
+- `htui mcp` stdio transport now uses newline-delimited JSON (NDJSON) per the MCP spec, instead of LSP-style `Content-Length` framing. Fixes VS Code's MCP client hanging on `initialize`.
+
 ## [0.4.0] - 2026-04-17
 
 ### Added
