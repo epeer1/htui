@@ -124,10 +124,12 @@ A new card slides in when the agent starts a command. Status turns green on exit
 `htui init` auto-detects how `htui` is installed and writes one of these `command` entries into `.vscode/mcp.json`:
 
 ```text
-Global:  htui mcp --workspace ${workspaceFolder}
+Global:  <abs-path-to-node> <abs-path-to-cli.js> mcp --workspace ${workspaceFolder}
 Local:   node node_modules/@epeer1/htui/dist/cli.js mcp --workspace ${workspaceFolder}
 npx:     npx -y @epeer1/htui mcp --workspace ${workspaceFolder}
 ```
+
+For global installs, htui resolves both the Node binary and its own CLI script to absolute, symlink-followed paths so the MCP client can spawn it without relying on inherited `PATH` (e.g. when VS Code is launched from Finder or the Dock on macOS). Re-run `htui init` if you switch Node versions.
 
 An existing `.vscode/mcp.json` is merged in place: other MCP servers are preserved, the file's tab/space indent is preserved, and JSONC comments are stripped on parse.
 

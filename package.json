@@ -1,6 +1,6 @@
 {
   "name": "@epeer1/htui",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Horizontal Terminal UI — turns terminal output into horizontally paged cards",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

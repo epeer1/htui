@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.2] - 2026-04-18
+
+### Fixed
+- `htui init` now writes absolute, symlink-resolved paths for the Node binary and CLI script in `.vscode/mcp.json` when the global install mode is detected. Fixes `Error spawn htui ENOENT` when VS Code is launched from Finder/Dock on macOS (or other contexts where the shell `PATH` isn't inherited). Re-run `htui init` after switching Node versions to refresh the paths.
+
 ## [0.4.1] - 2026-04-18
 
 ### Fixed

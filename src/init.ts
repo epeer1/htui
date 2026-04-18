@@ -441,9 +441,45 @@ export function detectInstallMode(scriptPath: string, workspaceRoot: string): In
   return 'global';
 }
 
-function buildHtuiServerEntry(mode: InstallMode): { command: string; args: string[] } {
+export interface ResolvedHtuiPaths {
+  nodePath: string;
+  scriptPath: string;
+}
+
+// Resolve absolute, symlink-followed paths to the node binary and the htui CLI script.
+// Returns null if rawScript is missing (caller should fall back to bare 'htui').
+// Defaults to live process values; params allow injection for tests.
+export function resolveHtuiAbsolutePaths(
+  rawNode: string = process.execPath,
+  rawScript: string | undefined = process.argv[1],
+  realpath: (p: string) => string = fs.realpathSync,
+): ResolvedHtuiPaths | null {
+  if (!rawScript) return null;
+  const resolveOne = (p: string): string => {
+    try {
+      return realpath(p);
+    } catch {
+      return path.resolve(p);
+    }
+  };
+  const nodePath = resolveOne(rawNode).replace(/\\/g, '/');
+  const scriptPath = resolveOne(rawScript).replace(/\\/g, '/');
+  return { nodePath, scriptPath };
+}
+
+function buildHtuiServerEntry(
+  mode: InstallMode,
+  paths: ResolvedHtuiPaths | null = null,
+): { command: string; args: string[] } {
   switch (mode) {
     case 'global':
+      if (paths) {
+        return {
+          command: paths.nodePath,
+          args: [paths.scriptPath, 'mcp', '--workspace', '${workspaceFolder}'],
+        };
+      }
+      // Fallback: argv[1] missing — keep legacy behavior. PATH must be set.
       return { command: 'htui', args: ['mcp', '--workspace', '${workspaceFolder}'] };
     case 'local':
       return {
@@ -522,10 +558,14 @@ export interface WriteMcpJsonResult {
   reason?: string;
 }
 
-export function writeMcpJson(workspaceRoot: string, mode: InstallMode): WriteMcpJsonResult {
+export function writeMcpJson(
+  workspaceRoot: string,
+  mode: InstallMode,
+  paths: ResolvedHtuiPaths | null = resolveHtuiAbsolutePaths(),
+): WriteMcpJsonResult {
   const targetDir = path.join(workspaceRoot, '.vscode');
   const target = path.join(targetDir, 'mcp.json');
-  const htuiEntry = buildHtuiServerEntry(mode);
+  const htuiEntry = buildHtuiServerEntry(mode, paths);
 
   let existing: string | null = null;
   try {
