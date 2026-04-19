@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0] - 2026-04-19
+
+### Changed (BREAKING)
+- `htui init` now targets **GitHub Copilot in VS Code only**. Support for Claude Code, Cursor, Windsurf, and Antigravity/Gemini has been removed. The positional `[agents...]` argument and the `--legacy` and `--skill` flags are gone. Existing `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`, and `.cursor/rules/htui.mdc` files in your project are NOT touched — delete them yourself if you no longer want them.
+- Copilot instructions written by `htui init` are now ~640 characters (down from ~3 KB): a single behavioral nudge to prefer htui's MCP tools over `run_in_terminal`. Tool-specific documentation lives in the MCP tool descriptions themselves.
+
+### Added
+- `vscode`, `copilot`, `mcp`, `ai`, `agent` to package keywords for discoverability.
+
 ## [0.4.2] - 2026-04-18
 
 ### Fixed

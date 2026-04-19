@@ -50,7 +50,7 @@ Your agent runs commands in your terminal. You can't see what it ran; it can't r
 
 ## Compatibility
 
-**Works with:** GitHub Copilot Chat · Cursor · Windsurf · Claude Code · Gemini / Antigravity — any MCP client.
+**Works with:** GitHub Copilot in VS Code.
 **Runs on:** Windows · macOS · Linux · WSL. **Requires:** Node ≥ 18.
 
 ## 30-second install
@@ -62,7 +62,7 @@ npm i -g @epeer1/htui      # global
 npx @epeer1/htui init      # zero-install
 
 # Then, from your project root:
-npx htui init --yes        # writes .vscode/mcp.json + agent instructions
+npx htui init --yes        # writes .vscode/mcp.json + .github/copilot-instructions.md
 # Reload VS Code (or restart your agent) to pick up the MCP server.
 
 # Optional: watch what the agent is doing, in any side terminal:
@@ -115,7 +115,7 @@ A new card slides in when the agent starts a command. Status turns green on exit
 
 | Command | What it does |
 |---|---|
-| `htui init [agents...]` | Configure MCP, agent instructions, and the watch script. `--yes` / `-y` / `--no-prompt` skips prompts. |
+| `htui init` | Configure MCP, Copilot instructions, and the watch script for VS Code. `--yes` / `-y` / `--no-prompt` skips the watch prompt. |
 | `htui mcp [--workspace <path>]` | Run as an MCP stdio server. Normally invoked by your agent, not by humans. |
 | `htui watch [--workspace <path>]` | Live TUI view of agent terminal activity. |
 | `htui exec "<command>"` | Fallback: run a command and print a structured JSON result. |
@@ -158,7 +158,7 @@ An existing `.vscode/mcp.json` is merged in place: other MCP servers are preserv
 ## FAQ / Troubleshooting
 
 - **Agent doesn't see the htui tools.** Reload your editor window after `htui init` so the MCP server is spawned. In VS Code: *Developer: Reload Window*.
-- **`htui watch` says "waiting for agent".** The MCP server is started on demand by your client. Open Copilot Chat (or your agent's chat panel) once — that triggers the spawn — and `watch` will connect.
+- **`htui watch` says "waiting for agent".** The MCP server is started on demand by your client. Open Copilot Chat once — that triggers the spawn — and `watch` will connect.
 - **Does it work in WSL?** Yes. Run htui inside the WSL distro; it behaves as Linux and uses `$XDG_RUNTIME_DIR` for the socket.
 - **Can two devs share one watch session?** No. Sockets are scoped to the local user and workspace by hash; there's no network transport.
 
